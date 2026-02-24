@@ -599,7 +599,8 @@ h6 {
 }
 
 .HeroBox {
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(20, 20, 25, 0.4);
+  backdrop-filter: blur(8px);
   border: 12px solid #fff;
   border-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMiIgaGVpZ2h0PSIxMiI+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTMgMGg2djNIM3pNMCAzaDN2Nkgwek05IDNoM3Y2SDl6TTMgOWg2djNIM3oiLz48cGF0aCBmaWxsPSIjODg4IiBkPSJNMCAwaDN2M0gwek05IDBoM3YzSDl6TTAgOWgzdjNIMHpNOSA5aDN2M0g5eiIvPjwvc3ZnPg==")
     3 stretch;

@@ -146,6 +146,73 @@ export default function Dashboard() {
               </form>
             </div>
           </div>
+
+          {/* Profile & Avatar Customizer */}
+          <div
+            className="action-card card"
+            style={{
+              borderColor: "var(--neon-pink)",
+              boxShadow: "4px 4px 0px var(--neon-pink)",
+            }}
+          >
+            <div className="card-body">
+              <div className="action-card-header">
+                <span className="action-emoji">👤</span>
+                <h3 style={{ color: "var(--neon-pink)" }}>Your Avatar</h3>
+              </div>
+              <div
+                className="action-card-content flex items-center justify-between"
+                style={{ display: "flex", alignItems: "center", gap: "16px" }}
+              >
+                <img
+                  src={`https://api.dicebear.com/9.x/pixel-art/svg?seed=${user?.name}`}
+                  alt="Avatar"
+                  style={{
+                    width: "64px",
+                    height: "64px",
+                    backgroundColor: "rgba(255,255,255,0.1)",
+                    borderRadius: "8px",
+                  }}
+                />
+                <div style={{ flex: 1 }}>
+                  <p
+                    style={{
+                      fontSize: "0.8rem",
+                      fontFamily: "var(--pixel-font)",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    Seed: {user?.name}
+                  </p>
+                  <button
+                    className="btn w-full"
+                    style={{
+                      backgroundColor: "var(--neon-pink)",
+                      color: "#000",
+                    }}
+                    onClick={async () => {
+                      const newSeed = prompt(
+                        "Enter a new seed string to generate your avatar:",
+                        user?.name,
+                      );
+                      if (newSeed && newSeed.trim() !== user?.name) {
+                        try {
+                          await api.put("/auth/profile", {
+                            name: newSeed.trim(),
+                          });
+                          window.location.reload();
+                        } catch (err) {
+                          console.error("Failed to update avatar");
+                        }
+                      }
+                    }}
+                  >
+                    🎲 Randomize
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </motion.div>
 
         <AnimatePresence>
