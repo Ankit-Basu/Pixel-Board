@@ -1,6 +1,7 @@
 import Message from "../models/Message.js";
 
 const onlineUsers = new Map(); // roomId -> Set of {userId, userName, socketId}
+const tttQueue = []; // TTT matchmaking queue
 
 const setupSocket = (io) => {
   io.on("connection", (socket) => {
@@ -61,6 +62,11 @@ const setupSocket = (io) => {
     // Clear canvas
     socket.on("clear-canvas", (data) => {
       socket.to(data.roomId).emit("clear-canvas", data);
+    });
+
+    // Broadcast solve results to all users in the room
+    socket.on("solve-result", (data) => {
+      socket.to(data.roomId).emit("solve-result", data);
     });
 
     // Chat messages
@@ -130,9 +136,104 @@ const setupSocket = (io) => {
       });
     });
 
+    // ========== Tic-Tac-Toe Matchmaking ==========
+    socket.on("ttt-join", ({ userId, userName }) => {
+      socket.tttUserId = userId;
+      socket.tttUserName = userName;
+
+      // Clean up disconnected sockets from queue
+      for (let i = tttQueue.length - 1; i >= 0; i--) {
+        if (!tttQueue[i].connected) tttQueue.splice(i, 1);
+      }
+
+      // Remove self if already in queue
+      const selfIdx = tttQueue.findIndex((s) => s.id === socket.id);
+      if (selfIdx > -1) tttQueue.splice(selfIdx, 1);
+
+      // Check if someone is already waiting
+      const waitingPlayer = tttQueue.find(
+        (s) => s.id !== socket.id && s.connected,
+      );
+      if (waitingPlayer) {
+        tttQueue.splice(tttQueue.indexOf(waitingPlayer), 1);
+        const gameRoomId = `ttt-${Date.now()}`;
+        waitingPlayer.join(gameRoomId);
+        socket.join(gameRoomId);
+        waitingPlayer.tttGameRoom = gameRoomId;
+        socket.tttGameRoom = gameRoomId;
+
+        console.log(
+          `TTT Match: ${waitingPlayer.tttUserName} (X) vs ${userName} (O) in ${gameRoomId}`,
+        );
+
+        waitingPlayer.emit("ttt-matched", {
+          roomId: gameRoomId,
+          symbol: "X",
+          opponentName: userName,
+        });
+        socket.emit("ttt-matched", {
+          roomId: gameRoomId,
+          symbol: "O",
+          opponentName: waitingPlayer.tttUserName,
+        });
+      } else {
+        tttQueue.push(socket);
+        console.log(
+          `TTT Queue: ${userName} waiting (queue size: ${tttQueue.length})`,
+        );
+      }
+    });
+
+    socket.on("ttt-move", (data) => {
+      socket.to(data.roomId).emit("ttt-move", data);
+    });
+
+    socket.on("ttt-leave", (data) => {
+      if (data && data.roomId) {
+        socket.to(data.roomId).emit("ttt-opponent-left");
+        socket.leave(data.roomId);
+      }
+      const idx = tttQueue.indexOf(socket);
+      if (idx > -1) tttQueue.splice(idx, 1);
+    });
+
+    // ========== Video Call Signaling ==========
+    socket.on("video-call-user", (data) => {
+      // data: { userToCall, signalData, from, callerName }
+      io.to(data.userToCall).emit("video-call-incoming", {
+        signal: data.signalData,
+        from: data.from,
+        callerName: data.callerName,
+      });
+    });
+
+    socket.on("video-call-accept", (data) => {
+      // data: { signal, to }
+      io.to(data.to).emit("video-call-accepted", {
+        signal: data.signal,
+      });
+    });
+
+    socket.on("video-call-end", (data) => {
+      // data: { to }
+      if (data.to) {
+        io.to(data.to).emit("video-call-ended");
+      }
+    });
+
     // Disconnect
     socket.on("disconnect", () => {
-      const { roomId, userId, userName } = socket;
+      const roomId = socket.roomId;
+      const userId = socket.userId;
+      const userName = socket.userName;
+
+      // Clean up TTT
+      const tttIdx = tttQueue.indexOf(socket);
+      if (tttIdx > -1) tttQueue.splice(tttIdx, 1);
+      if (socket.tttGameRoom) {
+        socket.to(socket.tttGameRoom).emit("ttt-opponent-left");
+      }
+
       if (roomId && onlineUsers.has(roomId)) {
         onlineUsers.get(roomId).delete(userId);
         const users = Array.from(onlineUsers.get(roomId).values());

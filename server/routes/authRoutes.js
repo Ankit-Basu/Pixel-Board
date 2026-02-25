@@ -16,10 +16,10 @@ router.post("/register", register);
 router.post("/login", login);
 router.get("/me", protect, getMe);
 
-// Update user profile (name or avatar)
-router.put("/profile", protect, updateProfile);
-
 // Firebase auth route — syncs Firebase user into MongoDB
 router.post("/firebase-sync", firebaseAuth, firebaseSync);
+
+// Profile update route
+router.put("/profile", firebaseAuth, updateProfile);
 
 export default router;

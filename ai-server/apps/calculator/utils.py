@@ -7,7 +7,7 @@ from PIL import Image
 from constants import GROQ_API_KEY
 
 client = Groq(api_key=GROQ_API_KEY)
-MODEL = "llama-3.2-90b-vision-preview"
+MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 
 
 def image_to_base64(img: Image.Image) -> str:
@@ -71,32 +71,80 @@ def analyze_image(img: Image.Image, dict_of_vars: dict):
     print("Raw response:", response_text)
     answers = []
 
-    def safe_literal_eval(s):
+    def extract_json_from_text(s):
+        """Try multiple strategies to extract valid JSON from AI response."""
+        # Strategy 1: Direct JSON parse
         try:
             return json.loads(s)
-        except json.JSONDecodeError:
-            try:
-                return ast.literal_eval(s)
-            except (ValueError, SyntaxError):
-                if '```json' in s:
-                    s = s.split('```json')[1].split('```')[0].strip()
-                elif '```' in s:
-                    s = s.split('```')[1].strip()
-                    if s.startswith('json\n'):
-                        s = s[5:]
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+        # Strategy 2: Direct literal eval
+        try:
+            return ast.literal_eval(s)
+        except (ValueError, SyntaxError):
+            pass
+
+        # Strategy 3: Extract from markdown code blocks
+        import re
+        code_block_patterns = [
+            r'```json\s*\n?(.*?)\n?\s*```',
+            r'```\s*\n?(.*?)\n?\s*```',
+        ]
+        for pattern in code_block_patterns:
+            match = re.search(pattern, s, re.DOTALL)
+            if match:
+                block = match.group(1).strip()
+                if block.startswith('json'):
+                    block = block[4:].strip()
                 try:
-                    return json.loads(s)
-                except json.JSONDecodeError:
-                    return ast.literal_eval(s)
+                    return json.loads(block)
+                except (json.JSONDecodeError, ValueError):
+                    try:
+                        return ast.literal_eval(block)
+                    except (ValueError, SyntaxError):
+                        pass
+
+        # Strategy 4: Find anything that looks like a JSON array [...]
+        bracket_match = re.search(r'\[.*\]', s, re.DOTALL)
+        if bracket_match:
+            try:
+                return json.loads(bracket_match.group(0))
+            except (json.JSONDecodeError, ValueError):
+                try:
+                    return ast.literal_eval(bracket_match.group(0))
+                except (ValueError, SyntaxError):
+                    pass
+
+        # Strategy 5: Find anything that looks like a JSON object {...}
+        brace_match = re.search(r'\{.*\}', s, re.DOTALL)
+        if brace_match:
+            try:
+                return json.loads(brace_match.group(0))
+            except (json.JSONDecodeError, ValueError):
+                try:
+                    return ast.literal_eval(brace_match.group(0))
+                except (ValueError, SyntaxError):
+                    pass
+
+        # Strategy 6: Try to find "result" or "answer" or "=" in text
+        eq_match = re.search(r'=\s*([+-]?\d+\.?\d*)', s)
+        if eq_match:
+            return [{"expr": "expression", "result": eq_match.group(1), "assign": False}]
+
+        return None
 
     try:
-        answers = safe_literal_eval(response_text)
-        if not isinstance(answers, list):
-            answers = [answers]
+        parsed = extract_json_from_text(response_text)
+        if parsed is not None:
+            answers = parsed if isinstance(parsed, list) else [parsed]
+        else:
+            print(f"Could not parse response, returning raw text")
+            answers = [{"expr": "Result", "result": response_text[:200], "assign": False}]
     except Exception as e:
         print(f"Error in parsing response from Groq API: {e}")
         print(f"Response text: {response_text}")
-        answers = [{"expr": "Error", "result": "Failed to parse response", "assign": False}]
+        answers = [{"expr": "Result", "result": response_text[:200], "assign": False}]
 
     print('Parsed answer:', answers)
 

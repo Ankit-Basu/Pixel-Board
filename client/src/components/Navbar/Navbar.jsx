@@ -8,33 +8,56 @@ export default function Navbar() {
 
   return (
     <nav className="navbar-hud">
-      <Link to={user ? "/dashboard" : "/"} className="hud-brand">
+      <Link to="/" className="hud-brand">
         <svg
           className="hud-joystick"
-          width="24"
-          height="24"
-          viewBox="0 0 16 16"
-          fill="currentColor"
+          width="26"
+          height="26"
+          viewBox="0 0 24 24"
+          fill="none"
         >
-          <path
-            d="M4 10v4h8v-4H4zm1 1h2v2H5v-2zm4 0h2v2H9v-2zM6 4h4v6H6V4zm1 1h2v4H7V5z"
-            fill="#fff"
+          {/* Paint palette */}
+          <ellipse
+            cx="12"
+            cy="13"
+            rx="10"
+            ry="9"
+            fill="#3a3a5c"
+            stroke="#fff"
+            strokeWidth="1.5"
           />
-          <path d="M7 1h2v3H7V1z" fill="red" />
+          <circle cx="8" cy="10" r="2" fill="#ff6b6b" />
+          <circle cx="13" cy="8" r="2" fill="#fbbf24" />
+          <circle cx="17" cy="12" r="2" fill="#4ecdc4" />
+          <circle cx="9" cy="16" r="2" fill="#a29bfe" />
+          <ellipse
+            cx="16"
+            cy="17"
+            rx="2.5"
+            ry="1.5"
+            fill="#fff"
+            opacity="0.9"
+          />
         </svg>
         Pixel-Nexus
       </Link>
 
       <div className="hud-center-links">
-        <Link to="#features" className="hud-link">
-          Features
-        </Link>
-        <Link to="#docs" className="hud-link">
-          Docs
-        </Link>
-        <Link to="#community" className="hud-link">
-          Community
-        </Link>
+        {!user && (
+          <>
+            <a href="#inventory" className="hud-link">
+              Inventory
+            </a>
+            <a href="#guest-preview" className="hud-link">
+              Guest Preview
+            </a>
+          </>
+        )}
+        {user && (
+          <Link to="/dashboard" className="hud-link">
+            Dashboard
+          </Link>
+        )}
       </div>
 
       <div className="hud-actions">
@@ -58,7 +81,11 @@ export default function Navbar() {
           <div className="hud-profile-container">
             <div className="hud-profile">
               <img
-                src={`https://api.dicebear.com/9.x/pixel-art/svg?seed=${user.name}`}
+                src={
+                  user.avatar
+                    ? user.avatar
+                    : `https://api.dicebear.com/9.x/pixel-art/svg?seed=${encodeURIComponent(user.name)}`
+                }
                 alt="Avatar"
                 className="hud-avatar"
               />

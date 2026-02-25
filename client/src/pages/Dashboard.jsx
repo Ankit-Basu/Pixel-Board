@@ -1,323 +1,322 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import api from "../api/axiosInstance.js";
 import Navbar from "../components/Navbar/Navbar.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import CollabZone from "../components/Dashboard/CollabZone.jsx";
+import ArcadeZone from "../components/Dashboard/ArcadeZone.jsx";
+import VideoCall from "../components/Dashboard/VideoCall.jsx";
+import CoinShop from "../components/Dashboard/CoinShop.jsx";
 
-const emojis = ["🎨", "📐", "🧮", "✏️", "🖌️", "📊", "🔬", "📝"];
+const ZONES = [
+  { id: "collab", label: "⚔️ COLLAB REALM", icon: "⚔️" },
+  { id: "arcade", label: "🕹️ ARCADE", icon: "🕹️" },
+  { id: "videocall", label: "📹 VIDEO CALL", icon: "📹" },
+  { id: "shop", label: "🏪 COIN SHOP", icon: "🏪" },
+];
+
+const slideVariants = {
+  enter: (direction) => ({ x: direction > 0 ? 300 : -300, opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (direction) => ({ x: direction < 0 ? 300 : -300, opacity: 0 }),
+};
+
+// DiceBear avatar customization options
+const HAIR_STYLES = [
+  "short01",
+  "short02",
+  "short03",
+  "short04",
+  "short05",
+  "long01",
+  "long02",
+  "long03",
+  "long04",
+];
+const SKIN_COLORS = ["ecad80", "f2d3b1", "d08b5b", "ae5d29", "614335"];
+const HAIR_COLORS = [
+  "000000",
+  "6a4e35",
+  "b55239",
+  "d6b370",
+  "cb6820",
+  "a484b0",
+  "dc4b50",
+  "2570dc",
+];
+const GLASSES = ["", "light01", "light02", "dark01", "dark02"];
+const MOUTHS = [
+  "happy01",
+  "happy02",
+  "happy03",
+  "happy04",
+  "happy05",
+  "sad01",
+  "sad02",
+];
 
 export default function Dashboard() {
-  const [rooms, setRooms] = useState([]);
-  const [joinId, setJoinId] = useState("");
-  const [roomName, setRoomName] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [creating, setCreating] = useState(false);
-  const navigate = useNavigate();
-  const { user } = useAuth();
+  const [activeZone, setActiveZone] = useState("collab");
+  const [direction, setDirection] = useState(0);
+  const [pixelCoins, setPixelCoins] = useState(0);
+  const [updatingAvatar, setUpdatingAvatar] = useState(false);
+  const [showCustomizer, setShowCustomizer] = useState(false);
+  const { user, updateProfileAvatar } = useAuth();
+  const lastCoinTime = useRef(0);
 
-  useEffect(() => {
-    if (user) fetchRooms();
-  }, [user]);
+  // Avatar customization state
+  const [avatarHair, setAvatarHair] = useState("short01");
+  const [avatarSkin, setAvatarSkin] = useState("ecad80");
+  const [avatarHairColor, setAvatarHairColor] = useState("000000");
+  const [avatarGlasses, setAvatarGlasses] = useState("");
+  const [avatarMouth, setAvatarMouth] = useState("happy01");
 
-  const fetchRooms = async () => {
+  const buildAvatarUrl = (hair, skin, hairColor, glasses, mouth) => {
+    let url = `https://api.dicebear.com/9.x/pixel-art/svg?seed=${encodeURIComponent(user?.name || "Hero")}`;
+    url += `&hair=${hair}`;
+    url += `&skinColor=${skin}`;
+    url += `&hairColor=${hairColor}`;
+    url += `&mouth=${mouth}`;
+    if (glasses) url += `&glasses=${glasses}&glassesProbability=100`;
+    else url += `&glassesProbability=0`;
+    return url;
+  };
+
+  const previewAvatarUrl = buildAvatarUrl(
+    avatarHair,
+    avatarSkin,
+    avatarHairColor,
+    avatarGlasses,
+    avatarMouth,
+  );
+
+  const switchZone = (zoneId) => {
+    const currentIdx = ZONES.findIndex((z) => z.id === activeZone);
+    const nextIdx = ZONES.findIndex((z) => z.id === zoneId);
+    setDirection(nextIdx > currentIdx ? 1 : -1);
+    setActiveZone(zoneId);
+  };
+
+  const handleCoinsEarned = (amount) => {
+    const now = Date.now();
+    if (now - lastCoinTime.current < 100) return;
+    lastCoinTime.current = now;
+    setPixelCoins((prev) => prev + amount);
+  };
+
+  const handleSaveAvatar = async () => {
     try {
-      const { data } = await api.get("/rooms");
-      setRooms(data);
-    } catch (err) {
-      console.error("Failed to fetch rooms:", err);
+      setUpdatingAvatar(true);
+      await updateProfileAvatar(previewAvatarUrl);
+      setShowCustomizer(false);
     } finally {
-      setLoading(false);
+      setUpdatingAvatar(false);
     }
-  };
-
-  const handleCreate = async () => {
-    try {
-      setError("");
-      setCreating(true);
-      const { data } = await api.post("/rooms/create", {
-        name: roomName || "Untitled Whiteboard",
-      });
-      navigate(`/room/${data.roomId}`);
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to create room");
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const handleJoin = async (e) => {
-    e.preventDefault();
-    if (!joinId.trim()) return;
-    try {
-      setError("");
-      await api.post("/rooms/join", { roomId: joinId.trim() });
-      navigate(`/room/${joinId.trim()}`);
-    } catch (err) {
-      setError(err.response?.data?.message || "Room not found");
-    }
-  };
-
-  const formatDate = (dateStr) => {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
   };
 
   return (
     <div>
       <Navbar />
-      <div className="dashboard">
-        {/* Welcome Banner */}
-        <motion.div
-          className="dashboard-welcome"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="welcome-text">
-            <h1>
-              <span className="welcome-wave">👋</span>
-              Hello, {user?.name || "Creator"}!
-            </h1>
-            <p className="welcome-sub">
-              Create a new whiteboard or join an existing room.
-            </p>
-          </div>
-        </motion.div>
-
-        {/* Action Cards */}
-        <motion.div
-          className="dashboard-cards"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.15 }}
-        >
-          {/* Create Room Card */}
-          <div className="action-card card">
-            <div className="card-body">
-              <div className="action-card-header">
-                <span className="action-emoji">✨</span>
-                <h3>New Board</h3>
-              </div>
-              <div className="action-card-content">
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Board name (optional)"
-                  value={roomName}
-                  onChange={(e) => setRoomName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-                />
-                <button
-                  className="btn btn-primary w-full"
-                  onClick={handleCreate}
-                  disabled={creating}
-                >
-                  {creating ? "⏳ Creating..." : "✚ Create Room"}
-                </button>
-              </div>
+      <div className="command-center retro-background-wrapper">
+        {/* Retro Sidebar */}
+        <div className="zone-sidebar">
+          {/* Avatar + Coins */}
+          <div className="sidebar-avatar-block">
+            <div className="avatar-preview-large">
+              <img
+                src={
+                  user?.avatar
+                    ? user.avatar
+                    : `https://api.dicebear.com/9.x/pixel-art/svg?seed=${encodeURIComponent(user?.name || "Hero")}`
+                }
+                alt="Avatar"
+              />
             </div>
+            <p className="avatar-name-display">{user?.name}</p>
+            <div className="pixel-coin-counter">🪙 {pixelCoins} COINS</div>
           </div>
 
-          {/* Join Room Card */}
-          <div className="action-card card">
-            <div className="card-body">
-              <div className="action-card-header">
-                <span className="action-emoji">🔗</span>
-                <h3>Join Room</h3>
-              </div>
-              <form className="action-card-content" onSubmit={handleJoin}>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Paste Room ID"
-                  value={joinId}
-                  onChange={(e) => setJoinId(e.target.value)}
-                />
-                <button type="submit" className="btn btn-secondary w-full">
-                  → Join
-                </button>
-              </form>
-            </div>
-          </div>
-
-          {/* Profile & Avatar Customizer */}
-          <div
-            className="action-card card"
-            style={{
-              borderColor: "var(--neon-pink)",
-              boxShadow: "4px 4px 0px var(--neon-pink)",
-            }}
-          >
-            <div className="card-body">
-              <div className="action-card-header">
-                <span className="action-emoji">👤</span>
-                <h3 style={{ color: "var(--neon-pink)" }}>Your Avatar</h3>
-              </div>
-              <div
-                className="action-card-content flex items-center justify-between"
-                style={{ display: "flex", alignItems: "center", gap: "16px" }}
+          {/* Zone Tabs */}
+          <div className="zone-tabs">
+            {ZONES.map((zone) => (
+              <button
+                key={zone.id}
+                className={`zone-tab ${activeZone === zone.id ? "active" : ""}`}
+                onClick={() => switchZone(zone.id)}
               >
-                <img
-                  src={`https://api.dicebear.com/9.x/pixel-art/svg?seed=${user?.name}`}
-                  alt="Avatar"
-                  style={{
-                    width: "64px",
-                    height: "64px",
-                    backgroundColor: "rgba(255,255,255,0.1)",
-                    borderRadius: "8px",
-                  }}
+                {zone.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Update Profile Button */}
+          <div className="sidebar-avatar-picker">
+            <button
+              className="hero-btn-retro btn-blue"
+              style={{ width: "100%", fontSize: "0.55rem" }}
+              onClick={() => setShowCustomizer(true)}
+            >
+              ✏️ UPDATE AVATAR
+            </button>
+          </div>
+        </div>
+
+        {/* Zone Content */}
+        <div className="zone-content">
+          <AnimatePresence mode="wait" custom={direction}>
+            <motion.div
+              key={activeZone}
+              custom={direction}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ type: "tween", duration: 0.3 }}
+              className="zone-panel"
+            >
+              {activeZone === "collab" && <CollabZone />}
+              {activeZone === "arcade" && (
+                <ArcadeZone onCoinsEarned={handleCoinsEarned} />
+              )}
+              {activeZone === "videocall" && <VideoCall />}
+              {activeZone === "shop" && (
+                <CoinShop
+                  pixelCoins={pixelCoins}
+                  setPixelCoins={setPixelCoins}
                 />
-                <div style={{ flex: 1 }}>
-                  <p
-                    style={{
-                      fontSize: "0.8rem",
-                      fontFamily: "var(--pixel-font)",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    Seed: {user?.name}
-                  </p>
-                  <button
-                    className="btn w-full"
-                    style={{
-                      backgroundColor: "var(--neon-pink)",
-                      color: "#000",
-                    }}
-                    onClick={async () => {
-                      const newSeed = prompt(
-                        "Enter a new seed string to generate your avatar:",
-                        user?.name,
-                      );
-                      if (newSeed && newSeed.trim() !== user?.name) {
-                        try {
-                          await api.put("/auth/profile", {
-                            name: newSeed.trim(),
-                          });
-                          window.location.reload();
-                        } catch (err) {
-                          console.error("Failed to update avatar");
-                        }
-                      }
-                    }}
-                  >
-                    🎲 Randomize
-                  </button>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* Avatar Customizer Modal with Blur Backdrop */}
+      <AnimatePresence>
+        {showCustomizer && (
+          <motion.div
+            className="avatar-modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowCustomizer(false)}
+          >
+            <motion.div
+              className="avatar-modal-box"
+              initial={{ scale: 0.85, opacity: 0, y: 30 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.85, opacity: 0, y: 30 }}
+              transition={{ type: "spring", damping: 20, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                className="avatar-modal-close"
+                onClick={() => setShowCustomizer(false)}
+              >
+                ✕
+              </button>
+              <h2 className="avatar-modal-title">UPDATE AVATAR</h2>
+              <p className="avatar-modal-subtitle">
+                Customize your pixel avatar
+              </p>
+
+              {/* Large Preview */}
+              <div className="avatar-modal-preview">
+                <img src={previewAvatarUrl} alt="Preview" />
+              </div>
+
+              {/* Customizer Grid */}
+              <div className="avatar-modal-options">
+                <div className="customizer-section">
+                  <label>HAIR STYLE</label>
+                  <div className="customizer-row">
+                    {HAIR_STYLES.map((h) => (
+                      <button
+                        key={h}
+                        className={`customizer-btn ${avatarHair === h ? "active" : ""}`}
+                        onClick={() => setAvatarHair(h)}
+                      >
+                        {h.replace("short0", "S").replace("long0", "L")}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="customizer-section">
+                  <label>HAIR COLOR</label>
+                  <div className="customizer-row">
+                    {HAIR_COLORS.map((c) => (
+                      <button
+                        key={c}
+                        className={`customizer-color-btn ${avatarHairColor === c ? "active" : ""}`}
+                        onClick={() => setAvatarHairColor(c)}
+                        style={{ background: `#${c}` }}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="customizer-section">
+                  <label>SKIN TONE</label>
+                  <div className="customizer-row">
+                    {SKIN_COLORS.map((c) => (
+                      <button
+                        key={c}
+                        className={`customizer-color-btn ${avatarSkin === c ? "active" : ""}`}
+                        onClick={() => setAvatarSkin(c)}
+                        style={{ background: `#${c}` }}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="customizer-section">
+                  <label>EXPRESSION</label>
+                  <div className="customizer-row">
+                    {MOUTHS.map((m) => (
+                      <button
+                        key={m}
+                        className={`customizer-btn ${avatarMouth === m ? "active" : ""}`}
+                        onClick={() => setAvatarMouth(m)}
+                      >
+                        {m.replace("happy0", "😊").replace("sad0", "😢")}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="customizer-section">
+                  <label>GLASSES</label>
+                  <div className="customizer-row">
+                    <button
+                      className={`customizer-btn ${avatarGlasses === "" ? "active" : ""}`}
+                      onClick={() => setAvatarGlasses("")}
+                    >
+                      None
+                    </button>
+                    {GLASSES.filter((g) => g).map((g) => (
+                      <button
+                        key={g}
+                        className={`customizer-btn ${avatarGlasses === g ? "active" : ""}`}
+                        onClick={() => setAvatarGlasses(g)}
+                      >
+                        {g.replace("light0", "L").replace("dark0", "D")}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </motion.div>
 
-        <AnimatePresence>
-          {error && (
-            <motion.div
-              className="auth-error"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-            >
-              {error}
+              {/* Save Button */}
+              <button
+                className="hero-btn-retro btn-green avatar-modal-save"
+                onClick={handleSaveAvatar}
+                disabled={updatingAvatar}
+              >
+                {updatingAvatar ? "SAVING..." : "💾 SAVE AVATAR"}
+              </button>
             </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Rooms List */}
-        <motion.div
-          className="rooms-section"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-        >
-          <h2 className="rooms-section-title">
-            <span>⬡</span> Your Whiteboards
-          </h2>
-
-          {loading ? (
-            <div className="flex justify-center p-4">
-              <div className="loading-card">
-                <div className="spinner" />
-                <p>Loading boards...</p>
-              </div>
-            </div>
-          ) : rooms.length === 0 ? (
-            <motion.div
-              className="empty-state"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-            >
-              <div className="empty-pixels">
-                {[...Array(6)].map((_, i) => (
-                  <motion.div
-                    key={i}
-                    className="pixel-block"
-                    animate={{
-                      y: [0, -10, 0],
-                      opacity: [0.4, 1, 0.4],
-                    }}
-                    transition={{
-                      duration: 2,
-                      repeat: Infinity,
-                      delay: i * 0.2,
-                    }}
-                    style={{
-                      background: [
-                        "var(--neon-purple)",
-                        "var(--neon-cyan)",
-                        "var(--neon-pink)",
-                        "var(--neon-yellow)",
-                        "var(--accent)",
-                        "var(--success)",
-                      ][i],
-                    }}
-                  />
-                ))}
-              </div>
-              <h3>No boards yet</h3>
-              <p>Create your first whiteboard to start collaborating!</p>
-            </motion.div>
-          ) : (
-            <div className="rooms-grid">
-              {rooms.map((room, i) => (
-                <motion.div
-                  key={room._id}
-                  className="card room-card"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.06 }}
-                  onClick={() => navigate(`/room/${room.roomId}`)}
-                  whileHover={{ y: -6 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <div className="card-body">
-                    <div className="room-card-top">
-                      <span className="room-emoji">
-                        {emojis[i % emojis.length]}
-                      </span>
-                      <h3>{room.name}</h3>
-                    </div>
-                    <div className="room-meta">
-                      <span className="room-id">{room.roomId}</span>
-                      <span>👥 {room.participants?.length || 1}</span>
-                      <span>{formatDate(room.updatedAt)}</span>
-                    </div>
-                    <div className="room-host">
-                      Host: {room.host?.name || "You"}
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </motion.div>
-      </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

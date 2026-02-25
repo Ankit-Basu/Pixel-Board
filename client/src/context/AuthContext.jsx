@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useRef } from "react";
 import axios from "axios";
 import {
   auth,
@@ -19,16 +19,39 @@ const API_URL = "http://localhost:5000/api/auth";
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const syncedUidRef = useRef(null); // track which UID we already synced
 
   // Listen for Firebase auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        // If we already synced this user in this session, just restore from localStorage
+        if (
+          syncedUidRef.current === firebaseUser.uid ||
+          sessionStorage.getItem("wb_synced") === firebaseUser.uid
+        ) {
+          const cached = localStorage.getItem("wb_user");
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            // Refresh the token silently
+            parsed.firebaseToken = await firebaseUser.getIdToken();
+            // Always pick up the latest photo from the provider (handles first-login edge case)
+            if (!parsed.avatar && firebaseUser.photoURL) {
+              parsed.avatar = firebaseUser.photoURL;
+              localStorage.setItem("wb_user", JSON.stringify(parsed));
+            }
+            setUser(parsed);
+          }
+          syncedUidRef.current = firebaseUser.uid;
+          setLoading(false);
+          return;
+        }
+
         try {
           // Get Firebase ID token
           const token = await firebaseUser.getIdToken();
 
-          // Sync user with MongoDB backend
+          // Sync user with MongoDB backend (sends email — only once)
           const { data } = await axios.post(
             `${API_URL}/firebase-sync`,
             {},
@@ -47,11 +70,12 @@ export function AuthProvider({ children }) {
             firebaseToken: token,
           };
 
+          syncedUidRef.current = firebaseUser.uid;
+          sessionStorage.setItem("wb_synced", firebaseUser.uid);
           setUser(userData);
           localStorage.setItem("wb_user", JSON.stringify(userData));
         } catch (error) {
           console.error("Firebase sync error:", error);
-          // If backend is down, still allow the user to see the app with Firebase data
           const fallbackUser = {
             _id: firebaseUser.uid,
             name: firebaseUser.displayName || firebaseUser.email.split("@")[0],
@@ -60,12 +84,15 @@ export function AuthProvider({ children }) {
             authProvider: "firebase",
             firebaseToken: await firebaseUser.getIdToken(),
           };
+          syncedUidRef.current = firebaseUser.uid;
           setUser(fallbackUser);
           localStorage.setItem("wb_user", JSON.stringify(fallbackUser));
         }
       } else {
+        syncedUidRef.current = null;
         setUser(null);
         localStorage.removeItem("wb_user");
+        sessionStorage.removeItem("wb_synced");
       }
       setLoading(false);
     });
@@ -106,6 +133,30 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("wb_user");
   };
 
+  // Update Profile Avatar
+  const updateProfileAvatar = async (avatarUrl) => {
+    if (!user || !auth.currentUser) return;
+    try {
+      const freshToken = await auth.currentUser.getIdToken();
+      const { data } = await axios.put(
+        `${API_URL}/profile`,
+        { avatar: avatarUrl },
+        { headers: { Authorization: `Bearer ${freshToken}` } },
+      );
+      const updatedUser = {
+        ...user,
+        avatar: data.avatar,
+        firebaseToken: freshToken,
+      };
+      setUser(updatedUser);
+      localStorage.setItem("wb_user", JSON.stringify(updatedUser));
+      return data;
+    } catch (error) {
+      console.error("Profile update failed:", error);
+      throw error;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -116,6 +167,7 @@ export function AuthProvider({ children }) {
         loginWithGoogle,
         loginWithGithub,
         logout,
+        updateProfileAvatar,
       }}
     >
       {children}

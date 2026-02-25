@@ -2,13 +2,6 @@ import { useTheme } from "../../context/ThemeContext.jsx";
 import "./BackgroundWrapper.css";
 
 export default function BackgroundWrapper({ children }) {
-  const { theme } = useTheme();
-
-  return (
-    <div
-      className={`background-wrapper ${theme === "light" ? "blueprint-grid" : "cyber-void"}`}
-    >
-      {children}
-    </div>
-  );
+  // Theme is handled globally via data-theme on html, but we can keep the hook if needed
+  return <div className="retro-background-wrapper">{children}</div>;
 }

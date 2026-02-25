@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useEffect } from "react";
 
 export default function Register() {
   const [name, setName] = useState("");
@@ -8,12 +9,14 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { user, register, loginWithGoogle, loginWithGithub } = useAuth();
+  const { register, loginWithGoogle, loginWithGithub, user } = useAuth();
   const navigate = useNavigate();
 
+  // Fix: Use an effect to redirect once user is loaded into context
+  // This prevents race conditions with Firebase's onAuthStateChanged
   useEffect(() => {
     if (user) {
-      navigate("/dashboard", { replace: true });
+      navigate("/dashboard");
     }
   }, [user, navigate]);
 
@@ -27,7 +30,7 @@ export default function Register() {
     setLoading(true);
     try {
       await register(name, email, password);
-      navigate("/dashboard");
+      // Navigation handled by useEffect
     } catch (err) {
       setError(
         err.message?.includes("email-already-in-use")
@@ -44,7 +47,7 @@ export default function Register() {
     setLoading(true);
     try {
       await loginWithGoogle();
-      navigate("/dashboard");
+      // Navigation handled by useEffect
     } catch (err) {
       if (!err.message?.includes("popup-closed")) {
         setError(err.message || "Google sign-in failed");
@@ -59,7 +62,7 @@ export default function Register() {
     setLoading(true);
     try {
       await loginWithGithub();
-      navigate("/dashboard");
+      // Navigation handled by useEffect
     } catch (err) {
       if (!err.message?.includes("popup-closed")) {
         setError(err.message || "GitHub sign-in failed");
@@ -91,6 +94,9 @@ export default function Register() {
         className="auth-card-retro"
         style={{ position: "relative", zIndex: 1 }}
       >
+        <Link to="/" className="auth-back-btn">
+          ← BACK
+        </Link>
         <div className="card-body">
           <div className="auth-header">
             <h1>Create Account</h1>

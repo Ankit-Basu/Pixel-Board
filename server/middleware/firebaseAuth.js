@@ -26,6 +26,7 @@ const firebaseAuth = async (req, res, next) => {
         firebaseUid: decoded.uid,
         authProvider: decoded.firebase?.sign_in_provider || "unknown",
       });
+      req.isNewUser = true;
     } else {
       // Update avatar / name if they changed on the provider side
       let needsUpdate = false;

@@ -12,8 +12,12 @@ Pixel-Board offers simultaneous drawing, real-time chat, WebRTC screen sharing, 
 - **Pixel Tools**: Includes standard pencil, eraser, path clearing, and color picker tools.
 - **AI Vision Math Solver**: Draw an equation on the board, click "Solve", and the Groq AI model will recognize and solve the math problem using Base64 image payload processing.
 - **In-Room Chat & Screen Sharing**: Communicate via live text chat and share your screen within the browser using WebRTC.
-- **Secure Private Rooms**: Generate unique Room IDs for isolated, secure collaboration spaces.
-- **Retro 8-Bit HUD**: Immersive gaming aesthetic featuring pixel typography (`Press Start 2P`, `VT323`), CSS glassmorphism HUDs, physical button press animations, and DiceBear generated pixel avatars.
+- **Peer-to-Peer Video Calling**: Secure, end-to-end encrypted side-by-side HD video calls integrated directly into the dashboard using SimplePeer WebRTC.
+- **The Arcade & Virtual Economy**:
+  - Earn **Pixel Coins** 🪙 by drawing or succeeding in mini-games.
+  - Play 6 fully functional mini-games: _Snake_, _Pixel Pong_, _Memory Match_, _Minesweeper_, _Tic-Tac-Toe_, and _Coin Rush_.
+  - Spend coins in the **Pixel Shop** to collect retro virtual gear (Magic Wand, Pet Dragon, Stealth Cloak, etc).
+- **Gamified "Command Center" Dashboard**: Immersive 8-bit aesthetic featuring pixel typography (`Press Start 2P`, `VT323`), fully responsive tabbed layouts, and CSS physical button press animations.
 - **Secure Authentication**: Firebase Auth paired with JWT verification and MongoDB state persistence.
 
 ---
@@ -23,16 +27,17 @@ Pixel-Board offers simultaneous drawing, real-time chat, WebRTC screen sharing, 
 **Frontend (Client)**
 
 - React.js + Vite
-- Vanilla CSS (Custom Design System, CSS Variables, Animations)
+- Vanilla CSS (Custom Design System, CSS Variables, Animations, Responsive Grid/Flexbox Layouts)
 - Context API (Socket, Auth, Theme)
+- SimplePeer (WebRTC for Video Calling)
 - MathJax (LaTeX Rendering)
-- Framer Motion
+- Framer Motion (Page Transitions)
 
 **Backend (Server)**
 
 - Node.js + Express
 - MongoDB Atlas & Mongoose
-- Socket.io (WebSockets)
+- Socket.io (WebSockets for Drawing, Chat, & Video Signaling)
 - Firebase Admin SDK
 - JSON Web Tokens (JWT)
 

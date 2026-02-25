@@ -1,9 +1,12 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import { MathJaxContext } from "better-react-mathjax";
+import { AnimatePresence } from "framer-motion";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { ThemeProvider } from "./context/ThemeContext.jsx";
 import { SocketProvider } from "./context/SocketContext.jsx";
 import ProtectedRoute from "./components/UI/ProtectedRoute.jsx";
+import RetroOverlay from "./components/UI/RetroOverlay.jsx";
+import PageTransition from "./components/UI/PageTransition.jsx";
 import Navbar from "./components/Navbar/Navbar.jsx";
 import Landing from "./pages/Landing.jsx";
 import Login from "./pages/Login.jsx";
@@ -20,57 +23,70 @@ const mathJaxConfig = {
   },
 };
 
+function AnimatedRoutes() {
+  const location = useLocation();
+
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route
+          path="/"
+          element={
+            <PageTransition>
+              <Navbar />
+              <Landing />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <PageTransition>
+              <Navbar />
+              <Login />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <PageTransition>
+              <Navbar />
+              <Register />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <PageTransition>
+                <Dashboard />
+              </PageTransition>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/room/:roomId"
+          element={
+            <ProtectedRoute>
+              <WhiteboardRoom />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </AnimatePresence>
+  );
+}
+
 export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
         <SocketProvider>
           <MathJaxContext config={mathJaxConfig}>
-            <Routes>
-              <Route
-                path="/"
-                element={
-                  <>
-                    <Navbar />
-                    <Landing />
-                  </>
-                }
-              />
-              <Route
-                path="/login"
-                element={
-                  <>
-                    <Navbar />
-                    <Login />
-                  </>
-                }
-              />
-              <Route
-                path="/register"
-                element={
-                  <>
-                    <Navbar />
-                    <Register />
-                  </>
-                }
-              />
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/room/:roomId"
-                element={
-                  <ProtectedRoute>
-                    <WhiteboardRoom />
-                  </ProtectedRoute>
-                }
-              />
-            </Routes>
+            <RetroOverlay />
+            <AnimatedRoutes />
           </MathJaxContext>
         </SocketProvider>
       </AuthProvider>

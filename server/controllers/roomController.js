@@ -100,3 +100,29 @@ export const saveCanvasData = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// DELETE /api/rooms/:roomId
+export const deleteRoom = async (req, res) => {
+  try {
+    const room = await Room.findOne({ roomId: req.params.roomId });
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    // Remove user from participants
+    room.participants = room.participants.filter(
+      (p) => p.toString() !== req.user._id.toString(),
+    );
+
+    if (room.participants.length === 0) {
+      // No participants left, delete the room entirely
+      await Room.deleteOne({ _id: room._id });
+    } else {
+      await room.save();
+    }
+
+    res.json({ message: "Quest removed" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

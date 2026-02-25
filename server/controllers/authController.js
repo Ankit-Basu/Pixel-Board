@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import { sendWelcomeEmail, sendLoginEmail } from "../utils/mailer.js";
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "30d" });
@@ -25,6 +26,9 @@ export const register = async (req, res) => {
       password,
       authProvider: "email",
     });
+
+    // Send welcome email (non-blocking)
+    sendWelcomeEmail(user.email, user.name);
 
     res.status(201).json({
       _id: user._id,
@@ -57,6 +61,9 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
+    // Send login notification (non-blocking)
+    sendLoginEmail(user.email, user.name);
+
     res.json({
       _id: user._id,
       name: user.name,
@@ -75,6 +82,14 @@ export const firebaseSync = async (req, res) => {
   try {
     // req.user is set by firebaseAuth middleware (verified Firebase token)
     const user = req.user;
+
+    // Send email only on sync (called once per login)
+    if (req.isNewUser) {
+      sendWelcomeEmail(user.email, user.name);
+    } else {
+      sendLoginEmail(user.email, user.name);
+    }
+
     res.json({
       _id: user._id,
       name: user.name,
@@ -109,10 +124,7 @@ export const updateProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
     if (user) {
-      user.name = req.body.name || user.name;
-      user.avatar =
-        req.body.avatar !== undefined ? req.body.avatar : user.avatar;
-
+      user.avatar = req.body.avatar || user.avatar;
       const updatedUser = await user.save();
       res.json({
         _id: updatedUser._id,

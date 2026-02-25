@@ -1,18 +1,21 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useEffect } from "react";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { user, login, loginWithGoogle, loginWithGithub } = useAuth();
+  const { login, loginWithGoogle, loginWithGithub, user } = useAuth();
   const navigate = useNavigate();
 
+  // Fix: Use an effect to redirect once user is loaded into context
+  // This prevents race conditions with Firebase's onAuthStateChanged
   useEffect(() => {
     if (user) {
-      navigate("/dashboard", { replace: true });
+      navigate("/dashboard");
     }
   }, [user, navigate]);
 
@@ -22,7 +25,7 @@ export default function Login() {
     setLoading(true);
     try {
       await login(email, password);
-      navigate("/dashboard");
+      // Navigation is now handled by useEffect
     } catch (err) {
       setError(
         err.message?.includes("invalid-credential")
@@ -39,7 +42,7 @@ export default function Login() {
     setLoading(true);
     try {
       await loginWithGoogle();
-      navigate("/dashboard");
+      // Navigation is now handled by useEffect
     } catch (err) {
       if (!err.message?.includes("popup-closed")) {
         setError(err.message || "Google sign-in failed");
@@ -54,7 +57,7 @@ export default function Login() {
     setLoading(true);
     try {
       await loginWithGithub();
-      navigate("/dashboard");
+      // Navigation is now handled by useEffect
     } catch (err) {
       if (!err.message?.includes("popup-closed")) {
         setError(err.message || "GitHub sign-in failed");
@@ -86,6 +89,9 @@ export default function Login() {
         className="auth-card-retro"
         style={{ position: "relative", zIndex: 1 }}
       >
+        <Link to="/" className="auth-back-btn">
+          ← BACK
+        </Link>
         <div className="card-body">
           <div className="auth-header">
             <h1>Welcome Back</h1>
