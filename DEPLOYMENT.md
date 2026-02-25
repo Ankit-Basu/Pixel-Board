@@ -46,27 +46,50 @@ If you want to deploy straight from your terminal right now:
 
 Render is an excellent free-tier platform that supports continuous long-running servers required for WebSockets. I have already created a `render.yaml` Blueprint file in your project to automate this process.
 
-### Steps to Deploy:
+### Why didn't we use the `render.yaml` Blueprint?
 
-1. Push your latest code to GitHub (ensure the `render.yaml` file is pushed).
+Render.com recently updated its free tier policies: while hosting Web Services is 100% free, their automated "Blueprint" creation tool now requires a credit card on file to prevent spam accounts from spinning up thousands of servers. By clicking "New > Web Service" manually as described below, you completely bypass the credit card requirement and stay on the free tier!
+
+### Steps to Deploy Manually (No Credit Card Required):
+
+1. Push your latest code to GitHub.
 2. Go to [Render.com](https://render.com/) and Sign Up / Log In using GitHub.
-3. Click the **New +** button in the dashboard.
-4. Select **Blueprint** from the dropdown menu.
+3. Click the **New +** button and select **Web Service**.
+4. Choose **Build and deploy from a Git repository**.
 5. Connect your GitHub account and select your `Pixel-Board` repository.
-6. Render will read the `render.yaml` file and automatically detect that you need **two** web services:
-   - `pixel-board-server` (The Node.js Socket.io backend)
-   - `pixel-board-ai-server` (The Python Groq AI backend)
-7. Render will ask you to input the values for your Environment Variables. You must paste in all of your keys from your local `.env` files:
-   - `MONGO_URI`
-   - `JWT_SECRET`
-   - `FIREBASE_PROJECT_ID`
-   - `FIREBASE_CLIENT_EMAIL`
-   - `FIREBASE_PRIVATE_KEY`
-   - `ALLOWED_ORIGIN` (Set this to your newly deployed Vercel frontend URL!)
-   - `GROQ_API_KEY`
-8. Click **Apply**.
 
-Render will now automatically build and spin up both of your servers.
+**Create the Node.js Server:**
+
+- **Name**: `pixel-nexus-server` (or whatever you prefer)
+- **Root Directory**: `server`
+- **Environment**: `Node`
+- **Build Command**: `npm install`
+- **Start Command**: `npm start`
+- Select the `Free` instance type.
+- Click **Add Environment Variable** and paste in all your keys from `server/.env`:
+  - `MONGO_URI`
+  - `JWT_SECRET`
+  - `FIREBASE_PROJECT_ID`
+  - `FIREBASE_CLIENT_EMAIL`
+  - `FIREBASE_PRIVATE_KEY`
+  - `ALLOWED_ORIGIN` (Set this to your Vercel frontend URL!)
+- Click **Deploy Web Service**.
+
+**Create the AI Server (Optional):**
+
+- Click **New +** > **Web Service** again and select your repo.
+- **Name**: `pixel-nexus-ai`
+- **Root Directory**: `ai-server`
+- **Environment**: `Python 3`
+- **Build Command**: `pip install -r requirements.txt`
+- **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+- Select the `Free` instance type.
+- Add your Environment Variables from `ai-server/.env`:
+  - `GROQ_API_KEY`
+  - `PYTHON_VERSION` = `3.10.0`
+- Click **Deploy Web Service**.
+
+Render will now build and spin up your free servers! It may take a few minutes for the first deployment.
 
 ---
 
