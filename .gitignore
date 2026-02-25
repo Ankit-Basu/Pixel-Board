@@ -22,3 +22,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Personal files
+PRESENTATION_SCRIPT.md
